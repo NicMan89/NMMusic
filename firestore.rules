@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Playlists collection
+    match /playlists/{playlistId} {
+      // Tutti gli utenti autenticati possono leggere le loro playlist
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Solo il proprietario può creare playlist
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Solo il proprietario può aggiornare le sue playlist
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Solo il proprietario può eliminare le sue playlist
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Users collection (opzionale per profili utente)
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+    
+    // Blocca tutto il resto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+/*
+COME APPLICARE QUESTE REGOLE:
+
+1. Vai su Firebase Console
+2. Firestore Database > Rules
+3. Copia e incolla questo contenuto
+4. Pubblica le regole
+
+NOTA: Queste regole garantiscono che:
+- Solo utenti autenticati possano accedere al database
+- Ogni utente veda solo le proprie playlist
+- Nessuno possa modificare/eliminare playlist altrui
+*/
