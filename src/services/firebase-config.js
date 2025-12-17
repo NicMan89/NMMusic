@@ -8,7 +8,7 @@ import { initializeApp } from "firebase/app";
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyD3sB4GmmbFvVjUKsa6c0TxEItHU7lvE4M",
   authDomain: "mymusic-pwa.firebaseapp.com",
   projectId: "mymusic-pwa",
