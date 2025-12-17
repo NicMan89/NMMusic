@@ -13,7 +13,7 @@ build/
 .env.*.local
 
 # Firebase config (se contiene chiavi sensibili)
-# src/services/firebase-config.js
+src/services/firebase-config.js
 
 # Editor
 .vscode/
