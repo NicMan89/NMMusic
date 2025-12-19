@@ -1,8 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // Base public path - cambia se usi sottocartella su GitHub Pages
-  // Es: se repo è "mymusic" usa: base: '/mymusic/'
+  // Base public path - per GitHub Pages
   base: '/NMMusic/',
   
   // Build options
