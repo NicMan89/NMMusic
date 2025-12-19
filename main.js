@@ -288,9 +288,30 @@ async function searchYouTube(query) {
 }
 
 async function fetchYouTubeResults(query) {
-  // TODO: Implementa chiamata API YouTube
-  // Per ora ritorna risultati mock
-  return [];
+  // Recuperiamo la chiave direttamente dalla tua configurazione esistente
+  const API_KEY = firebaseConfig.apiKey; 
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${API_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error("Errore API YouTube:", data.error.message);
+      return [];
+    }
+
+    // Trasformiamo i risultati per il tuo UIManager
+    return data.items.map(item => ({
+      videoId: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails.medium.url,
+      artist: item.snippet.channelTitle
+    }));
+  } catch (error) {
+    console.error("Errore durante la ricerca:", error);
+    return [];
+  }
 }
 
 async function handleAddToPlaylist(videoData) {
