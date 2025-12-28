@@ -1139,8 +1139,35 @@ input {
     
     .player-bar {
         grid-template-columns: 1fr auto;
-        gap: 12px;
-        padding: 0 12px;
+        gap: 8px;
+        padding: 8px 12px;
+    }
+    
+    .player-track-info {
+        min-width: 0;
+        flex: 1;
+    }
+    
+    .player-track-info .track-thumbnail {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .track-details {
+        max-width: 150px;
+    }
+    
+    .player-controls {
+        flex-direction: row;
+        gap: 8px;
+    }
+    
+    .controls-buttons {
+        gap: 8px;
+    }
+    
+    .progress-bar {
+        display: none;
     }
     
     .player-extra {
