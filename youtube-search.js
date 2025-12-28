@@ -12,7 +12,7 @@
 
 // âš ï¸ NON committare la tua API key reale su GitHub!
 // Usa variabili d'ambiente o backend proxy
-const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE';
+const YOUTUBE_API_KEY = 'AIzaSyD3sB4GmmbFvVjUKsa6c0TxEItHU7lvE4M';
 
 export class YouTubeSearchService {
   constructor(apiKey = YOUTUBE_API_KEY) {
@@ -57,7 +57,7 @@ export class YouTubeSearchService {
    * Ottieni dettagli video (durata, statistiche)
    */
   async getVideoDetails(videoId) {
-    if (!this.apiKey || this.apiKey === 'YOUR_YOUTUBE_API_KEY_HERE') {
+    if (!this.apiKey || this.apiKey === 'AIzaSyD3sB4GmmbFvVjUKsa6c0TxEItHU7lvE4M') {
       return null;
     }
 

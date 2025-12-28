@@ -9,6 +9,7 @@ import { AuthService } from './auth.js';
 import { PlaylistService } from './playlist.js';
 import { YouTubePlayer } from './youtube-player.js';
 import { UIManager } from './ui-manager.js';
+import { YouTubeSearchService } from './youtube-search.js';
 
 // Inizializza Firebase
 const app = initializeApp(firebaseConfig);
@@ -20,9 +21,13 @@ const authService = new AuthService(auth);
 const playlistService = new PlaylistService(db);
 const youtubePlayer = new YouTubePlayer();
 const uiManager = new UIManager();
+const youtubeSearchService = new YouTubeSearchService();
 
 // Wake Lock
 let wakeLock = null;
+
+// NoSleep per impedire standby mobile
+const noSleep = new NoSleep();
 
 // App State
 const appState = {
@@ -70,22 +75,16 @@ document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && appState.isBlackScreen) {
     appState.isBlackScreen = false;
     document.getElementById('black-screen').classList.remove('active');
-    const keepAwakeVideo = document.getElementById('keep-awake-video');
-    if (keepAwakeVideo) {
-      keepAwakeVideo.pause();
-      keepAwakeVideo.srcObject = null;
-    }
+    noSleep.disable();
+    console.log('🔓 NoSleep disabled (fullscreen exit)');
   }
 });
 document.addEventListener('webkitfullscreenchange', () => {
   if (!document.webkitFullscreenElement && appState.isBlackScreen) {
     appState.isBlackScreen = false;
     document.getElementById('black-screen').classList.remove('active');
-    const keepAwakeVideo = document.getElementById('keep-awake-video');
-    if (keepAwakeVideo) {
-      keepAwakeVideo.pause();
-      keepAwakeVideo.srcObject = null;
-    }
+    noSleep.disable();
+    console.log('🔓 NoSleep disabled (webkit fullscreen exit)');
   }
 });
 
@@ -270,7 +269,13 @@ async function searchYouTube(query) {
 }
 
 async function fetchYouTubeResults(query) {
-  return [];
+  try {
+    const results = await youtubeSearchService.search(query);
+    return results;
+  } catch (error) {
+    console.error('YouTube search error:', error);
+    return [];
+  }
 }
 
 async function handleAddToPlaylist(videoData) {
@@ -354,12 +359,9 @@ function setupEventListeners() {
     appState.isBlackScreen = false;
     document.getElementById('black-screen').classList.remove('active');
     
-    // Ferma video keep-awake
-    const keepAwakeVideo = document.getElementById('keep-awake-video');
-    if (keepAwakeVideo) {
-      keepAwakeVideo.pause();
-      keepAwakeVideo.srcObject = null;
-    }
+    // Disattiva NoSleep
+    noSleep.disable();
+    console.log('🔓 NoSleep disabled (exit button)');
     
     // Esci da fullscreen
     if (document.exitFullscreen) {
@@ -423,14 +425,14 @@ function setupEventListeners() {
 function toggleBlackScreen() {
   appState.isBlackScreen = !appState.isBlackScreen;
   const blackScreen = document.getElementById('black-screen');
-  const keepAwakeVideo = document.getElementById('keep-awake-video');
   
   if (appState.isBlackScreen) {
     blackScreen.classList.add('active');
     uiManager.updateBlackScreen(appState.currentTrack, appState.isPlaying);
     
-    // Avvia video keep-awake per impedire standby
-    startKeepAwakeVideo(keepAwakeVideo);
+    // Attiva NoSleep per impedire standby
+    noSleep.enable();
+    console.log('🔒 NoSleep enabled');
     
     // Attiva fullscreen
     if (blackScreen.requestFullscreen) {
@@ -443,11 +445,9 @@ function toggleBlackScreen() {
   } else {
     blackScreen.classList.remove('active');
     
-    // Ferma video keep-awake
-    if (keepAwakeVideo) {
-      keepAwakeVideo.pause();
-      keepAwakeVideo.srcObject = null;
-    }
+    // Disattiva NoSleep
+    noSleep.disable();
+    console.log('🔓 NoSleep disabled');
     
     // Esci da fullscreen
     if (document.exitFullscreen) {
@@ -456,24 +456,6 @@ function toggleBlackScreen() {
       document.webkitExitFullscreen();
     }
   }
-}
-
-// Crea e avvia un video nero per mantenere lo schermo attivo
-function startKeepAwakeVideo(videoElement) {
-  if (!videoElement) return;
-  
-  // Crea canvas nero
-  const canvas = document.createElement('canvas');
-  canvas.width = 2;
-  canvas.height = 2;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, 2, 2);
-  
-  // Crea video stream dal canvas
-  const stream = canvas.captureStream(1);
-  videoElement.srcObject = stream;
-  videoElement.play().catch(e => console.log('Keep-awake video error:', e));
 }
 
 function toggleMute() {

@@ -18,6 +18,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- NoSleep.js per impedire standby -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 </head>
 <body>
     <!-- Loading Screen -->
@@ -262,9 +265,6 @@
 
     <!-- Black Screen Overlay -->
     <div id="black-screen" class="black-screen">
-        <!-- Video nascosto per mantenere schermo attivo -->
-        <video id="keep-awake-video" loop muted playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;"></video>
-        
         <div class="black-screen-info">
             <img id="black-screen-thumbnail" src="" alt="" class="black-screen-thumbnail">
             <h2 id="black-screen-title">Titolo</h2>
