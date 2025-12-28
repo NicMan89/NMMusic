@@ -1139,13 +1139,8 @@ input {
     
     .player-bar {
         grid-template-columns: 1fr auto;
-        gap: 8px;
-        padding: 8px 12px;
-    }
-    
-    .player-track-info {
-        min-width: 0;
-        flex: 1;
+        gap: 12px;
+        padding: 8px 16px;
     }
     
     .player-track-info .track-thumbnail {
@@ -1153,20 +1148,7 @@ input {
         height: 48px;
     }
     
-    .track-details {
-        max-width: 150px;
-    }
-    
-    .player-controls {
-        flex-direction: row;
-        gap: 8px;
-    }
-    
-    .controls-buttons {
-        gap: 8px;
-    }
-    
-    .progress-bar {
+    .player-controls .progress-bar {
         display: none;
     }
     
