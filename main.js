@@ -32,7 +32,9 @@ const appState = {
   queue: [],
   queueIndex: 0,
   isPlaying: false,
-  isBlackScreen: false
+  isBlackScreen: false,
+  isMuted: false,
+  lastVolume: 100
 };
 
 // ===== WAKE LOCK =====
@@ -60,6 +62,20 @@ function releaseWakeLock() {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && appState.isPlaying) {
     await requestWakeLock();
+  }
+});
+
+// Gestione uscita fullscreen (ESC)
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && appState.isBlackScreen) {
+    appState.isBlackScreen = false;
+    document.getElementById('black-screen').classList.remove('active');
+  }
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  if (!document.webkitFullscreenElement && appState.isBlackScreen) {
+    appState.isBlackScreen = false;
+    document.getElementById('black-screen').classList.remove('active');
   }
 });
 
@@ -327,9 +343,22 @@ function setupEventListeners() {
   document.getElementById('black-exit').addEventListener('click', () => {
     appState.isBlackScreen = false;
     document.getElementById('black-screen').classList.remove('active');
+    // Esci da fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
   });
   
-  document.getElementById('volume-slider')?.addEventListener('input', (e) => youtubePlayer.setVolume(e.target.value));
+  // Volume e Mute
+  document.getElementById('btn-volume')?.addEventListener('click', toggleMute);
+  document.getElementById('volume-slider')?.addEventListener('input', (e) => {
+    youtubePlayer.setVolume(e.target.value);
+    appState.isMuted = false;
+    const volumeBtn = document.getElementById('btn-volume');
+    if (volumeBtn) volumeBtn.innerHTML = e.target.value == 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+  });
   document.getElementById('progress-slider')?.addEventListener('input', (e) => {
     youtubePlayer.seekTo((e.target.value / 100) * youtubePlayer.getDuration());
   });
@@ -375,11 +404,49 @@ function setupEventListeners() {
 
 function toggleBlackScreen() {
   appState.isBlackScreen = !appState.isBlackScreen;
+  const blackScreen = document.getElementById('black-screen');
+  
   if (appState.isBlackScreen) {
-    document.getElementById('black-screen').classList.add('active');
+    blackScreen.classList.add('active');
     uiManager.updateBlackScreen(appState.currentTrack, appState.isPlaying);
+    
+    // Attiva fullscreen
+    if (blackScreen.requestFullscreen) {
+      blackScreen.requestFullscreen();
+    } else if (blackScreen.webkitRequestFullscreen) {
+      blackScreen.webkitRequestFullscreen();
+    } else if (blackScreen.msRequestFullscreen) {
+      blackScreen.msRequestFullscreen();
+    }
   } else {
-    document.getElementById('black-screen').classList.remove('active');
+    blackScreen.classList.remove('active');
+    
+    // Esci da fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
+function toggleMute() {
+  const volumeSlider = document.getElementById('volume-slider');
+  const volumeBtn = document.getElementById('btn-volume');
+  
+  if (appState.isMuted) {
+    // Unmute
+    youtubePlayer.setVolume(appState.lastVolume);
+    if (volumeSlider) volumeSlider.value = appState.lastVolume;
+    if (volumeBtn) volumeBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    appState.isMuted = false;
+  } else {
+    // Mute
+    appState.lastVolume = volumeSlider ? volumeSlider.value : 100;
+    youtubePlayer.setVolume(0);
+    if (volumeSlider) volumeSlider.value = 0;
+    if (volumeBtn) volumeBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+    appState.isMuted = true;
   }
 }
 
