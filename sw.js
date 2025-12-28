@@ -1,6 +1,6 @@
-const CACHE_NAME = 'nmmusic-v1';
-const STATIC_CACHE = 'nmmusic-static-v1';
-const DYNAMIC_CACHE = 'nmmusic-dynamic-v1';
+const CACHE_NAME = 'nmmusic-v2';
+const STATIC_CACHE = 'nmmusic-static-v2';
+const DYNAMIC_CACHE = 'nmmusic-dynamic-v2';
 
 // Risorse da cachare all'installazione
 const STATIC_ASSETS = [
@@ -9,8 +9,12 @@ const STATIC_ASSETS = [
   './main.css',
   './main.js',
   './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  './auth.js',
+  './firebase-config.js',
+  './playlist.js',
+  './ui-manager.js',
+  './youtube-player.js',
+  './icon192.png'
 ];
 
 // Installazione Service Worker
@@ -61,9 +65,11 @@ self.addEventListener('fetch', (event) => {
   
   // Non cachare chiamate API Firebase
   if (url.hostname.includes('firebase') || 
+      url.hostname.includes('firebaseio') ||
       url.hostname.includes('googleapis') ||
       url.hostname.includes('youtube.com') ||
-      url.hostname.includes('ytimg.com')) {
+      url.hostname.includes('ytimg.com') ||
+      url.hostname.includes('googlevideo.com')) {
     return; // Lascia passare senza cache
   }
   
@@ -128,19 +134,12 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Background Sync (per future implementazioni)
+// Background Sync
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync:', event.tag);
-  
-  if (event.tag === 'sync-playlists') {
-    event.waitUntil(
-      // Implementa sync logic qui
-      Promise.resolve()
-    );
-  }
 });
 
-// Push Notifications (per future implementazioni)
+// Push Notifications
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received:', event);
   
@@ -148,11 +147,7 @@ self.addEventListener('push', (event) => {
     body: event.data ? event.data.text() : 'Nuova notifica',
     icon: './icon192.png',
     badge: './icon96.png',
-    vibrate: [200, 100, 200],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    }
+    vibrate: [200, 100, 200]
   };
   
   event.waitUntil(
@@ -170,7 +165,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Message handler per comunicazione con l'app
+// Message handler
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
   

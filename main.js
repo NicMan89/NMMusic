@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Import services (file nella root)
+// Import services
 import { firebaseConfig } from './firebase-config.js';
 import { AuthService } from './auth.js';
 import { PlaylistService } from './playlist.js';
@@ -29,7 +29,8 @@ const appState = {
   queue: [],
   queueIndex: 0,
   isPlaying: false,
-  isBlackScreen: false
+  isBlackScreen: false,
+  wakeLock: null // Riferimento al Wake Lock
 };
 
 // ===== INIZIALIZZAZIONE =====
@@ -42,7 +43,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       const registration = await navigator.serviceWorker.register('./sw.js');
       console.log('✅ Service Worker registered:', registration);
       
-      // Check per aggiornamenti
       registration.addEventListener('updatefound', () => {
         console.log('🔄 Service Worker update found');
       });
@@ -56,11 +56,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     hideLoading();
     
     if (user) {
-      // User logged in
       appState.currentUser = user;
       await handleUserLogin(user);
     } else {
-      // User logged out
       appState.currentUser = null;
       showAuthScreen();
     }
@@ -71,7 +69,49 @@ window.addEventListener('DOMContentLoaded', async () => {
   
   // Inizializza YouTube Player
   youtubePlayer.init();
+  
+  // Gestione visibilità pagina per Wake Lock
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
+
+// ===== WAKE LOCK MANAGEMENT =====
+async function requestWakeLock() {
+  if ('wakeLock' in navigator && appState.isPlaying) {
+    try {
+      appState.wakeLock = await navigator.wakeLock.request('screen');
+      console.log('✅ Wake Lock acquired');
+      
+      appState.wakeLock.addEventListener('release', () => {
+        console.log('⚠️ Wake Lock released');
+        // Richiedi di nuovo se sta ancora riproducendo
+        if (appState.isPlaying && document.visibilityState === 'visible') {
+          requestWakeLock();
+        }
+      });
+    } catch (err) {
+      console.log('Wake Lock error:', err.name, err.message);
+    }
+  }
+}
+
+async function releaseWakeLock() {
+  if (appState.wakeLock) {
+    try {
+      await appState.wakeLock.release();
+      appState.wakeLock = null;
+      console.log('✅ Wake Lock released manually');
+    } catch (err) {
+      console.log('Wake Lock release error:', err);
+    }
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && appState.isPlaying) {
+    // Riacquisisci il wake lock quando l'app torna visibile
+    requestWakeLock();
+  }
+}
 
 // ===== AUTH MANAGEMENT =====
 function showAuthScreen() {
@@ -87,15 +127,24 @@ function hideAuthScreen() {
 async function handleUserLogin(user) {
   hideAuthScreen();
   
-  // Update UI con info utente
   const userName = user.displayName || user.email.split('@')[0];
   document.getElementById('user-name').textContent = userName;
   
-  // Carica playlist utente
   await loadUserPlaylists();
-  
-  // Setup Media Session
   setupMediaSession();
+}
+
+// ===== SIDEBAR MANAGEMENT =====
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('active');
+  document.getElementById('sidebar-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('active');
+  document.getElementById('sidebar-overlay').classList.remove('active');
+  document.body.style.overflow = '';
 }
 
 // ===== PLAYLIST MANAGEMENT =====
@@ -114,13 +163,14 @@ async function handlePlaylistClick(playlistId) {
     const playlist = await playlistService.getPlaylist(playlistId);
     appState.currentPlaylist = playlist;
     
-    // Carica tracce
     const tracks = playlist.tracks || [];
     appState.queue = tracks;
     appState.queueIndex = 0;
     
-    // Mostra playlist view
     uiManager.showPlaylistView(playlist, tracks, handleTrackClick, handleDeleteTrack);
+    
+    // Chiudi sidebar su mobile
+    closeSidebar();
     
   } catch (error) {
     console.error('Error loading playlist:', error);
@@ -143,7 +193,6 @@ async function handleDeleteTrack(trackId) {
       trackId
     );
     
-    // Ricarica playlist
     await handlePlaylistClick(appState.currentPlaylist.id);
     uiManager.showSuccess('Canzone rimossa');
     
@@ -176,9 +225,14 @@ function playTrack(track) {
   
   // Highlight track in list
   uiManager.highlightCurrentTrack(appState.queueIndex);
+  
+  // Richiedi Wake Lock
+  requestWakeLock();
 }
 
 function togglePlayPause() {
+  if (!appState.currentTrack) return;
+  
   if (appState.isPlaying) {
     youtubePlayer.pause();
     appState.isPlaying = false;
@@ -187,6 +241,9 @@ function togglePlayPause() {
     if (appState.isBlackScreen) {
       uiManager.updateBlackScreen(appState.currentTrack, false);
     }
+    
+    // Rilascia Wake Lock
+    releaseWakeLock();
   } else {
     youtubePlayer.play();
     appState.isPlaying = true;
@@ -195,6 +252,9 @@ function togglePlayPause() {
     if (appState.isBlackScreen) {
       uiManager.updateBlackScreen(appState.currentTrack, true);
     }
+    
+    // Richiedi Wake Lock
+    requestWakeLock();
   }
   
   updateMediaSessionPlaybackState();
@@ -211,6 +271,21 @@ function playPrevious() {
   if (appState.queueIndex > 0) {
     appState.queueIndex--;
     playTrack(appState.queue[appState.queueIndex]);
+  }
+}
+
+// ===== BLACK SCREEN =====
+function toggleBlackScreen() {
+  appState.isBlackScreen = !appState.isBlackScreen;
+  
+  if (appState.isBlackScreen) {
+    document.getElementById('black-screen').classList.add('active');
+    uiManager.updateBlackScreen(appState.currentTrack, appState.isPlaying);
+    
+    // Richiedi Wake Lock
+    requestWakeLock();
+  } else {
+    document.getElementById('black-screen').classList.remove('active');
   }
 }
 
@@ -272,10 +347,6 @@ async function searchYouTube(query) {
   try {
     uiManager.showLoading();
     
-    // Usa YouTube Data API tramite backend o fetch diretto
-    // Per semplicità, qui usiamo una ricerca base
-    // In produzione, implementa chiamata API corretta
-    
     const results = await fetchYouTubeResults(query);
     uiManager.renderSearchResults(results, handleAddToPlaylist);
     
@@ -288,34 +359,11 @@ async function searchYouTube(query) {
 }
 
 async function fetchYouTubeResults(query) {
-  // Recuperiamo la chiave direttamente dalla tua configurazione esistente
-  const API_KEY = firebaseConfig.apiKey; 
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${API_KEY}`;
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.error) {
-      console.error("Errore API YouTube:", data.error.message);
-      return [];
-    }
-
-    // Trasformiamo i risultati per il tuo UIManager
-    return data.items.map(item => ({
-      videoId: item.id.videoId,
-      title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails.medium.url,
-      artist: item.snippet.channelTitle
-    }));
-  } catch (error) {
-    console.error("Errore durante la ricerca:", error);
-    return [];
-  }
+  // TODO: Implementa chiamata API YouTube
+  return [];
 }
 
 async function handleAddToPlaylist(videoData) {
-  // Mostra modal per scegliere playlist
   const playlists = await playlistService.getUserPlaylists(appState.currentUser.uid);
   uiManager.showPlaylistSelector(playlists, async (playlistId) => {
     try {
@@ -328,9 +376,25 @@ async function handleAddToPlaylist(videoData) {
   });
 }
 
+// ===== NAVIGATION =====
+function navigateToView(viewName) {
+  // Update sidebar navigation
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-view="${viewName}"]`);
+  if (navItem) navItem.classList.add('active');
+  
+  // Update bottom navigation
+  document.querySelectorAll('.bottom-nav-item').forEach(i => i.classList.remove('active'));
+  const bottomNavItem = document.querySelector(`.bottom-nav-item[data-view="${viewName}"]`);
+  if (bottomNavItem) bottomNavItem.classList.add('active');
+  
+  uiManager.showView(viewName);
+  closeSidebar();
+}
+
 // ===== EVENT LISTENERS =====
 function setupEventListeners() {
-  // Auth
+  // Auth tabs
   document.querySelectorAll('.auth-tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
       const tabType = e.target.dataset.tab;
@@ -347,6 +411,7 @@ function setupEventListeners() {
     });
   });
   
+  // Login form
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -359,6 +424,7 @@ function setupEventListeners() {
     }
   });
   
+  // Register form
   document.getElementById('register-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('register-name').value;
@@ -372,22 +438,48 @@ function setupEventListeners() {
     }
   });
   
+  // Logout
   document.getElementById('btn-logout').addEventListener('click', async () => {
     await authService.logout();
+    releaseWakeLock();
   });
   
-  // Navigation
+  // Mobile header - Hamburger menu
+  document.getElementById('btn-menu').addEventListener('click', openSidebar);
+  document.getElementById('btn-close-sidebar').addEventListener('click', closeSidebar);
+  document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
+  
+  // Mobile header - Search button
+  document.getElementById('btn-mobile-search').addEventListener('click', () => {
+    navigateToView('search');
+    // Focus sulla search bar
+    setTimeout(() => {
+      document.getElementById('search-input').focus();
+    }, 100);
+  });
+  
+  // Sidebar navigation
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const view = e.currentTarget.dataset.view;
-      
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      
-      uiManager.showView(view);
+      navigateToView(view);
     });
   });
+  
+  // Bottom navigation
+  document.querySelectorAll('.bottom-nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => {
+      const view = item.dataset.view;
+      navigateToView(view);
+    });
+  });
+  
+  // Bottom nav - Playlists button
+  document.getElementById('btn-mobile-playlists').addEventListener('click', openSidebar);
+  
+  // Bottom nav - Screen lock button
+  document.getElementById('btn-mobile-screen-lock').addEventListener('click', toggleBlackScreen);
   
   // Player controls
   document.getElementById('btn-play').addEventListener('click', togglePlayPause);
@@ -399,25 +491,10 @@ function setupEventListeners() {
   document.getElementById('black-next').addEventListener('click', playNext);
   document.getElementById('black-prev').addEventListener('click', playPrevious);
   
-  // Black screen toggle
-  document.getElementById('btn-screen-lock').addEventListener('click', () => {
-    appState.isBlackScreen = !appState.isBlackScreen;
-    
-    if (appState.isBlackScreen) {
-      document.getElementById('black-screen').classList.add('active');
-      uiManager.updateBlackScreen(appState.currentTrack, appState.isPlaying);
-      
-      // Previeni sleep su mobile
-      if ('wakeLock' in navigator) {
-        navigator.wakeLock.request('screen').catch(err => {
-          console.log('Wake Lock error:', err);
-        });
-      }
-    } else {
-      document.getElementById('black-screen').classList.remove('active');
-    }
-  });
+  // Black screen toggle (desktop button)
+  document.getElementById('btn-screen-lock').addEventListener('click', toggleBlackScreen);
   
+  // Black screen exit
   document.getElementById('black-exit').addEventListener('click', () => {
     appState.isBlackScreen = false;
     document.getElementById('black-screen').classList.remove('active');
@@ -478,11 +555,23 @@ function setupEventListeners() {
   window.onYouTubePlayerStateChange = (state) => {
     if (state === 0) { // ENDED
       playNext();
+    } else if (state === 1) { // PLAYING
+      appState.isPlaying = true;
+      uiManager.updatePlayerUI(appState.currentTrack, true);
+      requestWakeLock();
+    } else if (state === 2) { // PAUSED
+      appState.isPlaying = false;
+      uiManager.updatePlayerUI(appState.currentTrack, false);
     }
   };
   
   window.onYouTubePlayerTimeUpdate = (currentTime, duration) => {
     uiManager.updateProgress(currentTime, duration);
+    
+    // Update black screen progress
+    if (appState.isBlackScreen) {
+      uiManager.updateBlackScreenProgress(currentTime, duration);
+    }
   };
 }
 

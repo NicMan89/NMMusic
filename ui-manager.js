@@ -165,10 +165,10 @@ export class UIManager {
         </button>
       </div>
       <div class="track-content">
-        <img src="${track.thumbnail}" alt="${this.escapeHtml(track.title)}" class="track-thumbnail">
+        <img src="${track.thumbnail}" alt="${this.escapeHtml(track.title)}" class="track-thumbnail" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%231a1a24%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2230%22>♪</text></svg>'">
         <div class="track-text">
           <h4>${this.escapeHtml(track.title)}</h4>
-          <p>${this.escapeHtml(track.artist)}</p>
+          <p>${this.escapeHtml(track.artist || 'Sconosciuto')}</p>
         </div>
       </div>
       <span class="track-duration">${duration}</span>
@@ -189,10 +189,12 @@ export class UIManager {
     document.querySelectorAll('.track-item').forEach((item, i) => {
       if (i === index) {
         item.classList.add('playing');
-        item.querySelector('.track-play-btn i').className = 'fas fa-volume-up';
+        const playBtn = item.querySelector('.track-play-btn i');
+        if (playBtn) playBtn.className = 'fas fa-volume-up';
       } else {
         item.classList.remove('playing');
-        item.querySelector('.track-play-btn i').className = 'fas fa-play';
+        const playBtn = item.querySelector('.track-play-btn i');
+        if (playBtn) playBtn.className = 'fas fa-play';
       }
     });
   }
@@ -204,9 +206,13 @@ export class UIManager {
     if (!track) return;
 
     // Update info
-    document.getElementById('player-thumbnail').src = track.thumbnail;
+    const thumbnail = document.getElementById('player-thumbnail');
+    thumbnail.src = track.thumbnail;
+    thumbnail.onerror = () => {
+      thumbnail.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%231a1a24" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%23666" font-size="30">♪</text></svg>';
+    };
     document.getElementById('player-title').textContent = track.title;
-    document.getElementById('player-artist').textContent = track.artist;
+    document.getElementById('player-artist').textContent = track.artist || 'Sconosciuto';
 
     // Update play button
     const playBtn = document.getElementById('btn-play');
@@ -225,9 +231,13 @@ export class UIManager {
   updateBlackScreen(track, isPlaying) {
     if (!track) return;
 
-    document.getElementById('black-screen-thumbnail').src = track.thumbnail;
+    const thumbnail = document.getElementById('black-screen-thumbnail');
+    thumbnail.src = track.thumbnail;
+    thumbnail.onerror = () => {
+      thumbnail.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%231a1a24" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%23666" font-size="30">♪</text></svg>';
+    };
     document.getElementById('black-screen-title').textContent = track.title;
-    document.getElementById('black-screen-artist').textContent = track.artist;
+    document.getElementById('black-screen-artist').textContent = track.artist || 'Sconosciuto';
 
     const playBtn = document.getElementById('black-play');
     const playIcon = playBtn.querySelector('i');
@@ -240,18 +250,54 @@ export class UIManager {
   }
 
   /**
-   * Update progress bar
+   * Update black screen progress
+   */
+  updateBlackScreenProgress(currentTime, duration) {
+    if (duration === 0) return;
+
+    const percentage = (currentTime / duration) * 100;
+    
+    const progressFill = document.getElementById('black-progress-fill');
+    if (progressFill) {
+      progressFill.style.width = `${percentage}%`;
+    }
+    
+    const currentTimeEl = document.getElementById('black-current-time');
+    const durationTimeEl = document.getElementById('black-duration-time');
+    
+    if (currentTimeEl) currentTimeEl.textContent = this.formatTime(currentTime);
+    if (durationTimeEl) durationTimeEl.textContent = this.formatTime(duration);
+  }
+
+  /**
+   * Update progress bar (desktop + mobile)
    */
   updateProgress(currentTime, duration) {
     if (duration === 0) return;
 
     const percentage = (currentTime / duration) * 100;
     
-    document.getElementById('progress-fill').style.width = `${percentage}%`;
-    document.getElementById('progress-slider').value = percentage;
+    // Desktop progress
+    const progressFill = document.getElementById('progress-fill');
+    if (progressFill) {
+      progressFill.style.width = `${percentage}%`;
+    }
     
-    document.getElementById('current-time').textContent = this.formatTime(currentTime);
-    document.getElementById('duration-time').textContent = this.formatTime(duration);
+    const progressSlider = document.getElementById('progress-slider');
+    if (progressSlider) {
+      progressSlider.value = percentage;
+    }
+    
+    const currentTimeEl = document.getElementById('current-time');
+    const durationTimeEl = document.getElementById('duration-time');
+    if (currentTimeEl) currentTimeEl.textContent = this.formatTime(currentTime);
+    if (durationTimeEl) durationTimeEl.textContent = this.formatTime(duration);
+    
+    // Mobile progress bar
+    const mobileProgressFill = document.getElementById('mobile-progress-fill');
+    if (mobileProgressFill) {
+      mobileProgressFill.style.width = `${percentage}%`;
+    }
   }
 
   /**
@@ -290,7 +336,7 @@ export class UIManager {
     item.className = 'search-result-item';
 
     item.innerHTML = `
-      <img src="${result.thumbnail}" alt="${this.escapeHtml(result.title)}" class="search-result-thumbnail">
+      <img src="${result.thumbnail}" alt="${this.escapeHtml(result.title)}" class="search-result-thumbnail" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%231a1a24%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2230%22>♪</text></svg>'">
       <div class="search-result-info">
         <h4>${this.escapeHtml(result.title)}</h4>
         <p>${this.escapeHtml(result.artist || 'Sconosciuto')}</p>
@@ -385,36 +431,46 @@ export class UIManager {
    * Mostra toast notification
    */
   showToast(message, type = 'info') {
-    // Crea toast se non esiste
-    let toast = document.getElementById('toast');
-    
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'toast';
-      toast.style.cssText = `
-        position: fixed;
-        bottom: 120px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'error' ? '#f44336' : '#1db954'};
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        z-index: 10001;
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
-      `;
-      document.body.appendChild(toast);
+    // Rimuovi toast esistente
+    const existingToast = document.getElementById('toast');
+    if (existingToast) {
+      existingToast.remove();
     }
+    
+    const toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${type === 'error' ? '#f44336' : '#00E5FF'};
+      color: ${type === 'error' ? 'white' : 'black'};
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 10001;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      max-width: 90%;
+      text-align: center;
+    `;
+    document.body.appendChild(toast);
 
     toast.textContent = message;
-    toast.style.opacity = '1';
+    
+    // Animate in
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+    });
 
     setTimeout(() => {
       toast.style.opacity = '0';
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
     }, 3000);
   }
 
@@ -441,6 +497,7 @@ export class UIManager {
    * Escape HTML per prevenire XSS
    */
   escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
