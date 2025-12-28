@@ -1,20 +1,16 @@
-const CACHE_NAME = 'nmmusic-v2';
-const STATIC_CACHE = 'nmmusic-static-v2';
-const DYNAMIC_CACHE = 'nmmusic-dynamic-v2';
+const CACHE_NAME = 'mymusic-v1';
+const STATIC_CACHE = 'mymusic-static-v1';
+const DYNAMIC_CACHE = 'mymusic-dynamic-v1';
 
 // Risorse da cachare all'installazione
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './main.css',
-  './main.js',
-  './manifest.json',
-  './auth.js',
-  './firebase-config.js',
-  './playlist.js',
-  './ui-manager.js',
-  './youtube-player.js',
-  './icon192.png'
+  '/',
+  '/index.html',
+  '/src/styles/main.css',
+  '/src/main.js',
+  '/manifest.json',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
 // Installazione Service Worker
@@ -65,11 +61,9 @@ self.addEventListener('fetch', (event) => {
   
   // Non cachare chiamate API Firebase
   if (url.hostname.includes('firebase') || 
-      url.hostname.includes('firebaseio') ||
       url.hostname.includes('googleapis') ||
       url.hostname.includes('youtube.com') ||
-      url.hostname.includes('ytimg.com') ||
-      url.hostname.includes('googlevideo.com')) {
+      url.hostname.includes('ytimg.com')) {
     return; // Lascia passare senza cache
   }
   
@@ -97,7 +91,7 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
               // Fallback per immagini
               if (request.destination === 'image') {
-                return caches.match('./icon192.png');
+                return caches.match('/icons/icon-192.png');
               }
             });
         })
@@ -127,31 +121,42 @@ self.addEventListener('fetch', (event) => {
             
             // Fallback alla index per navigazione
             if (request.mode === 'navigate') {
-              return caches.match('./index.html');
+              return caches.match('/index.html');
             }
           });
       })
   );
 });
 
-// Background Sync
+// Background Sync (per future implementazioni)
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync:', event.tag);
+  
+  if (event.tag === 'sync-playlists') {
+    event.waitUntil(
+      // Implementa sync logic qui
+      Promise.resolve()
+    );
+  }
 });
 
-// Push Notifications
+// Push Notifications (per future implementazioni)
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received:', event);
   
   const options = {
     body: event.data ? event.data.text() : 'Nuova notifica',
-    icon: './icon192.png',
-    badge: './icon96.png',
-    vibrate: [200, 100, 200]
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-96.png',
+    vibrate: [200, 100, 200],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    }
   };
   
   event.waitUntil(
-    self.registration.showNotification('NM Music', options)
+    self.registration.showNotification('MyMusic', options)
   );
 });
 
@@ -161,11 +166,11 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   event.waitUntil(
-    clients.openWindow('./')
+    clients.openWindow('/')
   );
 });
 
-// Message handler
+// Message handler per comunicazione con l'app
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
   

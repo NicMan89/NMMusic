@@ -15,7 +15,7 @@ export class YouTubePlayer {
       this.createPlayer();
     };
 
-    // Se API già caricata
+    // Se API giÃ  caricata
     if (window.YT && window.YT.Player) {
       this.createPlayer();
     }
@@ -23,13 +23,12 @@ export class YouTubePlayer {
 
   /**
    * Crea l'istanza del player
-   * IMPORTANTE: Il player deve essere visibile (anche se fuori schermo) per evitare pausa su mobile
    */
   createPlayer() {
     try {
       this.player = new YT.Player('youtube-player', {
-        height: '1',
-        width: '1',
+        height: '0',
+        width: '0',
         playerVars: {
           autoplay: 1,
           controls: 0,
@@ -37,10 +36,9 @@ export class YouTubePlayer {
           fs: 0,
           iv_load_policy: 3,
           modestbranding: 1,
-          playsinline: 1, // IMPORTANTE per iOS
+          playsinline: 1,
           rel: 0,
-          enablejsapi: 1,
-          origin: window.location.origin
+          enablejsapi: 1
         },
         events: {
           onReady: this.onPlayerReady.bind(this),
@@ -49,18 +47,18 @@ export class YouTubePlayer {
         }
       });
 
-      console.log('✅ YouTube Player initialized');
+      console.log('âœ… YouTube Player initialized');
     } catch (error) {
-      console.error('❌ Error creating player:', error);
+      console.error('âŒ Error creating player:', error);
     }
   }
 
   /**
-   * Callback quando il player è pronto
+   * Callback quando il player Ã¨ pronto
    */
   onPlayerReady(event) {
     this.isReady = true;
-    console.log('✅ YouTube Player ready');
+    console.log('âœ… YouTube Player ready');
     
     // Imposta volume iniziale
     this.setVolume(100);
@@ -80,7 +78,7 @@ export class YouTubePlayer {
     };
 
     const state = states[event.data];
-    console.log('🎵 Player state:', state);
+    console.log('ðŸŽµ Player state:', state);
 
     // Notifica app
     if (window.onYouTubePlayerStateChange) {
@@ -108,7 +106,7 @@ export class YouTubePlayer {
     };
 
     const error = errors[event.data] || 'Errore sconosciuto';
-    console.error('❌ YouTube Player error:', error);
+    console.error('âŒ YouTube Player error:', error);
 
     // Notifica app
     if (window.onYouTubePlayerError) {
@@ -116,7 +114,7 @@ export class YouTubePlayer {
     }
 
     // Prova a saltare al prossimo video
-    if (event.data === 100 || event.data === 150 || event.data === 101) {
+    if (event.data === 100 || event.data === 150) {
       setTimeout(() => {
         if (window.onYouTubePlayerStateChange) {
           window.onYouTubePlayerStateChange(0); // Trigger ENDED
@@ -130,25 +128,22 @@ export class YouTubePlayer {
    */
   loadVideo(videoId) {
     if (!this.isReady) {
-      console.warn('⚠️ Player not ready yet');
+      console.warn('âš ï¸ Player not ready yet');
       setTimeout(() => this.loadVideo(videoId), 500);
       return;
     }
 
     if (!videoId) {
-      console.error('❌ No video ID provided');
+      console.error('âŒ No video ID provided');
       return;
     }
 
     try {
       this.currentVideoId = videoId;
-      this.player.loadVideoById({
-        videoId: videoId,
-        suggestedQuality: 'small' // Usa qualità bassa per audio (risparmia banda)
-      });
-      console.log('✅ Loading video:', videoId);
+      this.player.loadVideoById(videoId);
+      console.log('âœ… Loading video:', videoId);
     } catch (error) {
-      console.error('❌ Error loading video:', error);
+      console.error('âŒ Error loading video:', error);
     }
   }
 
@@ -289,7 +284,7 @@ export class YouTubePlayer {
   }
 
   /**
-   * Check se è muted
+   * Check se Ã¨ muted
    */
   isMuted() {
     if (this.isReady && this.player) {
