@@ -262,6 +262,9 @@
 
     <!-- Black Screen Overlay -->
     <div id="black-screen" class="black-screen">
+        <!-- Video nascosto per mantenere schermo attivo -->
+        <video id="keep-awake-video" loop muted playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;"></video>
+        
         <div class="black-screen-info">
             <img id="black-screen-thumbnail" src="" alt="" class="black-screen-thumbnail">
             <h2 id="black-screen-title">Titolo</h2>
