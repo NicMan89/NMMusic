@@ -257,7 +257,7 @@ export class UIManager {
   /**
    * Renderizza risultati ricerca
    */
-  renderSearchResults(results, onAddToPlaylist) {
+  renderSearchResults(results, onAddToPlaylist, onPreview) {
     const container = document.getElementById('search-results');
     container.innerHTML = '';
 
@@ -274,7 +274,17 @@ export class UIManager {
     results.forEach(result => {
       const item = this.createSearchResultItem(result);
       
-      item.addEventListener('click', () => {
+      // Preview button
+      const previewBtn = item.querySelector('.btn-preview');
+      previewBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (onPreview) onPreview(result);
+      });
+      
+      // Add button
+      const addBtn = item.querySelector('.btn-add');
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         onAddToPlaylist(result);
       });
 
@@ -285,17 +295,22 @@ export class UIManager {
   /**
    * Crea item risultato ricerca
    */
-  createSearchResultItem(result) {
+  createSearchResultItem(result, onPreview, onAdd) {
     const item = document.createElement('div');
     item.className = 'search-result-item';
+    
+    const duration = this.formatDuration(result.duration);
 
     item.innerHTML = `
       <img src="${result.thumbnail}" alt="${this.escapeHtml(result.title)}" class="search-result-thumbnail">
       <div class="search-result-info">
         <h4>${this.escapeHtml(result.title)}</h4>
-        <p>${this.escapeHtml(result.artist || 'Sconosciuto')}</p>
+        <p>${this.escapeHtml(result.artist || 'Sconosciuto')} • ${duration}</p>
       </div>
-      <button class="btn-icon">
+      <button class="btn-icon btn-preview" title="Anteprima 15s">
+        <i class="fas fa-headphones"></i>
+      </button>
+      <button class="btn-icon btn-add" title="Aggiungi">
         <i class="fas fa-plus"></i>
       </button>
     `;

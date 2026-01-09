@@ -39,7 +39,9 @@ const appState = {
   isPlaying: false,
   isBlackScreen: false,
   isMuted: false,
-  lastVolume: 100
+  lastVolume: 100,
+  isPreview: false,
+  previewTimeout: null
 };
 
 // ===== WAKE LOCK =====
@@ -193,6 +195,14 @@ async function handleDeleteTrack(trackId) {
 
 async function playTrack(track) {
   if (!track) return;
+  
+  // Ferma preview se attiva
+  if (appState.previewTimeout) {
+    clearTimeout(appState.previewTimeout);
+    appState.previewTimeout = null;
+  }
+  appState.isPreview = false;
+  
   appState.currentTrack = track;
   appState.isPlaying = true;
   await requestWakeLock();
@@ -262,10 +272,60 @@ async function searchYouTube(query) {
   if (!query.trim()) return;
   try {
     const results = await fetchYouTubeResults(query);
-    uiManager.renderSearchResults(results, handleAddToPlaylist);
+    uiManager.renderSearchResults(results, handleAddToPlaylist, handlePreview);
   } catch (error) {
     console.error('Search error:', error);
   }
+}
+
+// Preview primi 15 secondi
+function handlePreview(videoData) {
+  // Ferma preview precedente
+  if (appState.previewTimeout) {
+    clearTimeout(appState.previewTimeout);
+  }
+  
+  appState.isPreview = true;
+  
+  // Mostra info nel player
+  uiManager.updatePlayerUI({
+    thumbnail: videoData.thumbnail,
+    title: '🎧 ' + videoData.title,
+    artist: 'Anteprima 15s'
+  }, true);
+  
+  // Carica e riproduci
+  youtubePlayer.loadVideo(videoData.videoId);
+  
+  // Ferma dopo 15 secondi
+  appState.previewTimeout = setTimeout(() => {
+    youtubePlayer.pause();
+    appState.isPreview = false;
+    uiManager.updatePlayerUI({
+      thumbnail: '',
+      title: 'Anteprima terminata',
+      artist: '-'
+    }, false);
+  }, 15000);
+}
+
+// Shuffle playlist
+function shufflePlay() {
+  if (appState.queue.length === 0) return;
+  
+  // Crea copia e mescola
+  const shuffled = [...appState.queue];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  
+  appState.queue = shuffled;
+  appState.queueIndex = 0;
+  playTrack(appState.queue[0]);
+  
+  // Aggiorna UI lista
+  uiManager.showPlaylistView(appState.currentPlaylist, shuffled, handleTrackClick, handleDeleteTrack);
 }
 
 async function fetchYouTubeResults(query) {
@@ -404,6 +464,9 @@ function setupEventListeners() {
       console.error('Error deleting playlist:', error);
     }
   });
+  
+  // Shuffle
+  document.getElementById('btn-shuffle')?.addEventListener('click', shufflePlay);
   
   let searchTimeout;
   document.getElementById('search-input').addEventListener('input', (e) => {

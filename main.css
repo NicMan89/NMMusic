@@ -715,6 +715,14 @@ input {
     color: var(--text-secondary);
 }
 
+.search-result-item .btn-preview {
+    color: var(--accent-cyan);
+}
+
+.search-result-item .btn-add {
+    color: var(--accent-purple);
+}
+
 /* ===== PLAYER BAR ===== */
 .player-bar {
     background: var(--bg-secondary);
